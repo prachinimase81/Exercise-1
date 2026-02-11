@@ -20,10 +20,22 @@ document.addEventListener("DOMContentLoaded", () => {
 
         const spotsLeft = details.max_participants - details.participants.length;
 
-        // Create participants list HTML
-        const participantsList = details.participants.length > 0
-          ? `<ul class="participants-list">${details.participants.map(p => `<li>${p}</li>`).join("")}</ul>`
-          : `<p class="no-participants"><em>No participants yet</em></p>`;
+        // Create participants list HTML with delete icon
+        let participantsList = "";
+        if (details.participants.length > 0) {
+          participantsList = `<ul class="participants-list no-bullets">` +
+            details.participants.map(p => `
+              <li>
+                <span class="participant-email">${p}</span>
+                <button class="delete-participant" title="Remove participant" data-activity="${encodeURIComponent(name)}" data-email="${encodeURIComponent(p)}">
+                  <span aria-hidden="true">🗑️</span>
+                </button>
+              </li>
+            `).join("") +
+            `</ul>`;
+        } else {
+          participantsList = `<p class="no-participants"><em>No participants yet</em></p>`;
+        }
 
         activityCard.innerHTML = `
           <h4>${name}</h4>
@@ -43,6 +55,29 @@ document.addEventListener("DOMContentLoaded", () => {
         option.value = name;
         option.textContent = name;
         activitySelect.appendChild(option);
+      });
+
+      // Add event listeners for delete buttons
+      document.querySelectorAll(".delete-participant").forEach(btn => {
+        btn.addEventListener("click", async (e) => {
+          e.preventDefault();
+          const activity = decodeURIComponent(btn.getAttribute("data-activity"));
+          const email = decodeURIComponent(btn.getAttribute("data-email"));
+          if (!confirm(`Remove ${email} from ${activity}?`)) return;
+          try {
+            const response = await fetch(`/activities/${encodeURIComponent(activity)}/unregister?email=${encodeURIComponent(email)}`, {
+              method: "POST"
+            });
+            if (response.ok) {
+              fetchActivities();
+            } else {
+              const result = await response.json();
+              alert(result.detail || "Failed to remove participant.");
+            }
+          } catch (error) {
+            alert("Failed to remove participant. Please try again.");
+          }
+        });
       });
     } catch (error) {
       activitiesList.innerHTML = "<p>Failed to load activities. Please try again later.</p>";
